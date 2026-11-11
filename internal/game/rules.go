@@ -56,10 +56,7 @@ func sequence(cards []cb.Card, wild cb.Rank, pure bool) (Meld, bool) {
 	}
 	for suit := cb.Spades; suit <= cb.Clubs; suit++ {
 		for start := 1; start+n-1 <= 14; start++ {
-			// 2..A is the longest high-Ace window; A may occur only at an endpoint.
-			if start == 1 && n > 13 {
-				continue
-			}
+			// Windows are either A..K or 2..A; no window wraps through K-A-2.
 			slots := make([]cb.Card, n)
 			for i := range slots {
 				rank := start + i
@@ -295,5 +292,9 @@ func FindPartition(cards []cb.Card, cfg Config) ([]Meld, error) {
 	if melds, ok := search(full, 0, false); ok {
 		return melds, nil
 	}
-	return nil, fmt.Errorf("no complete arrangement with a pure sequence%s", map[bool]string{true: " and exactly two groups of 3 + 4", false: ""}[cfg.Cards == 7])
+	suffix := ""
+	if cfg.Cards == 7 {
+		suffix = " and exactly two groups of 3 + 4"
+	}
+	return nil, fmt.Errorf("no complete arrangement with a pure sequence%s", suffix)
 }
