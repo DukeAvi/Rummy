@@ -13,7 +13,9 @@ func main() {
 		fmt.Fprintln(os.Stderr, "rummy needs an interactive terminal; run go run ./cmd/rummy inside WSL.")
 		os.Exit(1)
 	}
-	if _, err := tea.NewProgram(tui.New(), tea.WithAltScreen()).Run(); err != nil {
+	app := tui.NewApp()
+	defer app.Close()
+	if _, err := tea.NewProgram(app, tea.WithAltScreen()).Run(); err != nil {
 		fmt.Fprintln(os.Stderr, "rummy:", err)
 		os.Exit(1)
 	}

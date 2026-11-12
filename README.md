@@ -1,84 +1,178 @@
 # rummy-tui
 
-A complete local, two-human hot-seat Rummy game for a Linux/WSL terminal.
-Choose seven or thirteen cards and the wild rank before each round. Draw,
-carry/reorder cards, build melds, discard, and declare. Each turn ends behind a
-privacy screen that requires the next player to press Enter.
+Two humans can play seven- or thirteen-card Rummy in one terminal, or from
+separate terminals over a laptop hotspot / local network. Both modes use
+[Cardboard](https://github.com/DukeAvi/cardboard) for full-size Vintage card
+artwork and the same tested rules engine.
 
-[Cardboard](https://github.com/DukeAvi/cardboard) supplies all card identities,
-decks, piles, transfers, carrying, and Vintage pixel artwork. Rummy rules live
-in `internal/game`; Bubble Tea and Lip Gloss provide `internal/tui`.
+## Set up Go in WSL (Ubuntu/Debian)
 
-## WSL setup and launch
+If `go version` already reports **1.24 or newer**, skip to Install and run.
+Run these commands inside WSL, not Windows PowerShell:
 
-Requires **Go 1.24+**, Git, and an interactive WSL Linux terminal. Windows
-Terminal with Unicode and truecolor support is recommended. No Windows binary,
-GUI, browser, server, or C library is required for normal play.
+```sh
+sudo apt update
+sudo apt install -y git curl ca-certificates tar build-essential
+```
 
-For **large Cardboard cards**, maximize the terminal and aim for **180 columns
-× 60 rows**. The artwork appears automatically at **88 columns × 36 rows or
-larger**; each card is 26×20 terminal cells. Check your current size with
-`stty size`, which prints **rows, then columns**. You can increase the terminal
-font size for physically larger cards, provided enough rows and columns remain.
+For a fresh installation, download the current stable Linux toolchain into
+`~/.local/lib/go`. This uses the [official Go distribution](https://go.dev/doc/install):
 
-Launch this checkout directly from WSL:
+```sh
+RUMMY_GO_VERSION=$(curl -fsSL 'https://go.dev/VERSION?m=text' | head -n 1)
+case "$(uname -m)" in
+  x86_64) RUMMY_GO_ARCH=amd64 ;;
+  aarch64|arm64) RUMMY_GO_ARCH=arm64 ;;
+  *) echo 'Unsupported CPU: use the Linux download from https://go.dev/dl/' ;;
+esac
+RUMMY_GO_TEMP=$(mktemp -d)
+curl -fL "https://go.dev/dl/${RUMMY_GO_VERSION}.linux-${RUMMY_GO_ARCH}.tar.gz" -o "$RUMMY_GO_TEMP/go.tar.gz"
+mkdir -p "$HOME/.local/lib"
+if test -e "$HOME/.local/lib/go"; then
+  echo 'A Go installation already exists here. Do not extract over it; see the official upgrade instructions.'
+else
+  tar -C "$HOME/.local/lib" -xzf "$RUMMY_GO_TEMP/go.tar.gz"
+fi
+export PATH="$HOME/.local/lib/go/bin:$PATH"
+go version
+```
+
+To keep Go available in new terminals, add this line to `~/.bashrc` (Bash)
+or `~/.zshrc` (Zsh), then reopen the terminal:
+
+```sh
+export PATH="$HOME/.local/lib/go/bin:$PATH"
+```
+
+## Install and run
+
+Use Go **1.24+**, Git, and a truecolor Unicode terminal in Linux or WSL.
+For the supplied checkout, Cardboard lives at `../cardboard`; `go.mod` uses
+that local source directly. If installing from a source copy on a new computer,
+copy this project's source folder to `~/code/rummy` and get Cardboard beside it:
+
+```sh
+mkdir -p ~/code
+# Skip this clone if ~/code/cardboard already exists.
+git clone https://github.com/DukeAvi/cardboard.git ~/code/cardboard
+```
+
+Rummy has not been published to a remote repository; obtain its source folder
+or compiled executable from the host. Build and launch the supplied source
+checkout from WSL (on another account, use `cd ~/code/rummy`):
 
 ```sh
 cd /home/duke/code/rummy
-go run -buildvcs=false ./cmd/rummy
-```
-
-Choose 7-card or 13-card mode, choose the wild rank, then confirm the first
-player's handoff. The hand starts in overlapping artwork view; press `c` for
-the grid. Left/Right moves through the hand and reveals cards outside the
-current view. Stock and open discard artwork appear beside your hand.
-
-The workspace reserves the top-level `.git` directory. The existing Git
-history is stored in `rummy-tui/.git` with the project root as its working
-tree. Run Git commands as `git -C rummy-tui status` (or replace `status` with
-the desired Git command). The build commands disable VCS stamping so Go can
-build with this workspace layout.
-
-This checkout uses the existing Cardboard source without modifying or copying
-it. Its `go.mod` replacement expects this directory layout:
-
-```text
-code/
-├── cardboard/             # existing github.com/DukeAvi/cardboard checkout
-└── rummy/                 # this project
-```
-
-For a fresh installation, download dependencies once from the repository
-directory (this needs network access unless they are already cached):
-
-```sh
 go mod download
-```
-
-To build and launch a native Linux executable:
-
-```sh
-go build -buildvcs=false -o rummy ./cmd/rummy
+go build -o rummy ./cmd/rummy
 ./rummy
 ```
 
-If your Cardboard checkout is elsewhere, point the module replacement at it:
+Or launch from source with `go run ./cmd/rummy`. For a different Cardboard
+location, run `go mod edit -replace=github.com/DukeAvi/cardboard=/absolute/path/to/cardboard`
+and `go mod tidy`. With internet access, `go mod edit -dropreplace=github.com/DukeAvi/cardboard`
+followed by `go mod tidy` downloads the pinned revision instead.
 
-```sh
-go mod edit -replace=github.com/DukeAvi/cardboard=/absolute/path/to/cardboard
-go mod tidy
+Your friend can build the same source, or receive a copy of the compiled
+`rummy` executable for the same Linux CPU architecture. The executable includes
+its dependencies: Cardboard and Go are not required on the receiving machine.
+Run `chmod +x rummy` and `./rummy` in their Linux/WSL terminal. Build separately
+for a different operating system or CPU architecture.
+
+Use at least **88 columns × 36 rows**; **180×60** is comfortable. Check with
+`stty size` (rows, then columns). When the window is too small, the game asks
+you to zoom out or enlarge it. It never replaces cards with a text-only hand.
+Resize at any point to resume the artwork. Each card uses 26×20 terminal cells.
+
+## First round
+
+1. Launch the program and choose **One PC** or **OTA / local network**.
+2. One PC: choose 7/13 cards and the wild rank, then pass the keyboard at each
+   handoff screen. Only Enter reveals the next player's hand.
+3. Network host: choose **Host a game**, enter the laptop address reachable by
+   your friend, then choose the mode and wild rank. The server listens on TCP
+   **45873**. The lobby displays a code like `192.168.137.1:45873/<token>`.
+4. Friend: connect to the laptop hotspot, launch the same game, choose network
+   play → **Join a game**, and paste the **entire code**, including address,
+   port, slash, and token. Press Enter. No separate address entry is needed.
+5. Both players review the lobby and press Enter to ready. Player 1 (host)
+   starts. The guest sees a waiting screen until their turn. All moves are
+   checked by the host; each client receives only its own hand and groups.
+6. Draw with `d` (closed) or `o` (open), arrange/group cards, then `x` discards
+   the selected card or `v` declares using it as the final discard.
+
+The initial code admits one guest, expires after ten minutes, and is consumed
+when used. Esc cancels the host lobby; hosting again generates a new code.
+Codes are credentials for a trusted local network; traffic is not encrypted.
+
+## Hotspot and WSL connectivity
+
+Turn on Windows Mobile hotspot and have your friend connect. Use `ipconfig`
+in Windows to find the hotspot adapter's IPv4 address. Enter that address in
+the Host screen; the automatically suggested WSL address may not be reachable
+from the guest.
+
+For automatic WSL2 NAT setup, turn on the hotspot, then open **Administrator
+Windows PowerShell** and run the supplied script (replace `Ubuntu` if your
+WSL distribution has a different name; `wsl --list --quiet` lists them):
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "\\wsl.localhost\Ubuntu\home\duke\code\rummy\scripts\setup-hotspot.ps1" -Distro Ubuntu
 ```
 
-Alternatively, with network access, remove the local replacement to download
-the pinned Cardboard revision from GitHub through Go's module proxy:
+The script detects an active Wi-Fi Direct hotspot adapter or asks which local
+IPv4 address to use, forwards TCP 45873 to WSL, and adds a firewall rule scoped
+to that address and the local subnet. It prints the Host address for the game.
+Rerun it if WSL's IP changes. Check guest connectivity after setup.
 
-```sh
-go mod edit -dropreplace=github.com/DukeAvi/cardboard
-go mod tidy
+Alternatively, configure WSL2 NAT manually instead of using the script. In
+**Administrator PowerShell**, substitute your actual hotspot address:
+
+```powershell
+$RummyHotspotIP = "192.168.137.1"
+$RummyWslIP = ((wsl hostname -I).Trim() -split '\s+')[0]
+netsh interface portproxy add v4tov4 listenaddress=$RummyHotspotIP listenport=45873 connectaddress=$RummyWslIP connectport=45873
+New-NetFirewallRule -DisplayName "Rummy hotspot" -Direction Inbound -Action Allow -Protocol TCP -LocalAddress $RummyHotspotIP -LocalPort 45873 -RemoteAddress LocalSubnet
 ```
 
-The development environment used a local replacement because downloads were
-blocked. All other dependencies are recorded in `go.mod` and `go.sum`.
+Refresh the forwarding rule if WSL's IP changes. If already using mirrored
+networking, omit the port proxy and allow TCP 45873 through the WSL Hyper-V
+firewall as described in [Microsoft's WSL networking guide](https://learn.microsoft.com/en-us/windows/wsl/networking).
+If a Linux firewall is active, allow the same TCP port there too.
+
+Troubleshooting: confirm the host lobby is open, the hotspot address is right,
+and both devices use the same game build. In guest Windows PowerShell,
+`Test-NetConnection <hotspot-IP> -Port 45873` checks reachability. An incorrect
+or used code requires a fresh lobby; a port-in-use error means another host
+is running. Hotspots with client isolation may block peer traffic.
+
+After use, optional cleanup in Administrator PowerShell (set the same hotspot
+address you used during setup):
+
+```powershell
+$RummyHotspotIP = "192.168.137.1"
+netsh interface portproxy delete v4tov4 listenaddress=$RummyHotspotIP listenport=45873
+Get-NetFirewallRule -DisplayName "Rummy hotspot*" -ErrorAction SilentlyContinue | Remove-NetFirewallRule
+```
+
+## Another round, reconnecting, and leaving
+
+On the winner screen, Enter / `p` lets the host choose a new mode and wild
+rank; the guest waits for that proposal. Both must ready again. The same
+session and authenticated seats are retained across rounds.
+
+A transient connection failure pauses actions and retries automatically. The
+guest lobby shows a **private rejoin code**: keep it if you may need to restart
+the guest app, then paste it in Join. It expires after five minutes without
+contact. It restores the same seat, hand, groups, and action sequence; the
+initial public join code cannot reclaim that seat. A voluntary quit ends the
+session and invalidates credentials. If the host process exits or crashes,
+the guest cannot resume that session and should quit, then join a new host.
+
+`q` / Ctrl+C opens quit confirmation (in address/code fields, use Ctrl+C).
+Confirm with `y` / Enter, or cancel with `n` / Esc. The alternate terminal
+screen is restored on exit. Ending a guest session notifies the host; after
+a host process exits the guest may see connection retries and can press `q`.
 
 ## Playing
 
@@ -113,7 +207,7 @@ shuffled into an empty stock while its visible open top remains in place.
 | Enter / p on winner screen | Start another round |
 
 A gold Cardboard frame identifies the selected card; red means carried.
-Marked positions appear above the artwork, or as `*` in compact mode. Melds
+Marked positions appear above the artwork. Melds
 show their cards and classification. Invalid drafts can be saved for editing;
 physical cards cannot belong to two groups. Group membership follows card
 IDs when cards move. Place or cancel a carried card before other game actions.
@@ -124,8 +218,7 @@ every remaining card must be grouped exactly once.** Remove the final discard
 from its draft group with `u`, or clear drafts with `z`. `a` finds and stores a
 complete arrangement for the chosen discard; `v` commits it. Failed attempts
 preserve all cards, groups, and turn state. The winner screen shows every meld
-and joker substitution; Left/Right inspects group artwork. Compact winner
-screens scroll with j/k.
+and joker substitution; Left/Right inspects group artwork. Small winner screens prompt you to resize.
 
 ## House rules
 
@@ -155,7 +248,7 @@ go mod tidy
 go test ./...
 go test -race ./...
 go vet ./...
-go build -buildvcs=false -o rummy ./cmd/rummy
+go build -o rummy ./cmd/rummy
 ```
 
 The race check requires a working Go race toolchain (on WSL amd64, CGO enabled
@@ -163,16 +256,16 @@ and a C compiler such as GCC). Tests use seeded deals and deterministic hands
 for deck identities, joker interpretations, exhaustive declarations, turn
 restrictions, stock recycling, conservation, privacy, and TUI transitions.
 
-## Display and limitations
+## Verification and limitations
 
-Use **180 columns × 60 rows** for comfortable large-card play; **88 columns ×
-36 rows** is the artwork threshold. Cardboard's pixel cards stay at their full
-26×20-cell size, with stock and discard artwork beside the hand. Overlap and grid views follow
-the selected card, so not every card must fit at once. Smaller terminals use
-readable ranks/suits; `i` inspects full groups and reasons with scrolling. Very
-short terminals can show only part of the controls. Resize at any time.
+The game, two-seat protocol, retry handling, replay, privacy, and TUI transitions
+have automated tests, including complete winning hands in both modes and
+repeated stock recycling. The transport is tested with framed connections.
+Run the commands above for tests, race checks, vet, and a native build.
+Agent setup and maintenance instructions are in [AGENTS.md](AGENTS.md).
 
-Rounds are local and in memory: there is no save/resume, scoring, networking,
-or computer opponent. Privacy hides the inactive hand from the interface; it
-cannot prevent another person from watching the screen after confirmation.
-The local module replacement must be adjusted if the directory layout changes.
+Rounds are in memory: there is no save file, scoring, or computer opponent.
+The host must stay running. This version supports one host and one guest,
+using TCP 45873, with the full connection code rather than automatic discovery.
+Hotspot connectivity and the Windows setup script still need verification on
+the target devices. Local automated tests do not verify those network settings.

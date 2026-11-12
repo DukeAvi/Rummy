@@ -119,7 +119,7 @@ func (m *Model) tableView() string {
 	footer := "←/→ h/l: select  Space: carry  m/g/u: groups  d/o: draw  x: discard  v: declare\na: auto-group  z: clear groups  i: inspect  c: layout  ?: help  q: quit"
 	// Keep feedback and controls visible even when the artwork cannot fit.
 	if m.width < 88 || m.height < 36 {
-		return m.compactTable(header, details, hand, groupLines, footer)
+		return m.resizeView()
 	}
 	groupCapacity := max(1, m.height-30)
 	if len(groupLines) > groupCapacity {
@@ -153,41 +153,8 @@ func cardNames(cards []cb.Card) string {
 	return strings.Join(names, " ")
 }
 
-func (m *Model) compactTable(header, details string, hand *cb.Pile, groups []string, _ string) string {
-	top := "empty"
-	if c, err := m.game.DiscardTop(); err == nil {
-		top = c.Short()
-	}
-	public := fmt.Sprintf("Closed: %d · Open: %s (%d)", m.game.StockCount(), top, m.game.DiscardCount())
-	var tokens []string
-	for i, c := range hand.Cards() {
-		token := fmt.Sprintf("%d:%s", i+1, c.Short())
-		if m.marked[c.ID] {
-			token += "*"
-		}
-		if i == m.selection.Selected() {
-			token = "[" + token + "]"
-		}
-		tokens = append(tokens, token)
-	}
-	// Reserve the bottom of even a short screen for selected-card details,
-	// feedback, and a short help hint. The middle is a scrolling information
-	// area so every card and every group remains inspectable on small terminals.
-	lines := strings.Split(m.wrap(public)+"\n"+m.wrap(strings.Join(tokens, "  "))+"\n"+m.wrap(strings.Join(groups, "\n")), "\n")
-	available := max(1, m.height-7)
-	// Focus the selected card's line while retaining manual group inspection in
-	// the help-independent details modal (i).
-	start := 0
-	selectedToken := fmt.Sprintf("[%d:", m.selection.Selected()+1)
-	for i, line := range lines {
-		if strings.Contains(line, selectedToken) && i >= available {
-			start = i - available + 1
-			break
-		}
-	}
-	middle := strings.Join(lines[start:min(start+available, len(lines))], "\n")
-	footer := "d/o draw · x discard · v declare\n? help · i groups · q quit"
-	return m.fit(header + "\n" + m.singleLine(details) + "\n" + middle + "\n" + goldStyle.Render(m.singleLine(m.feedback)) + "\n" + footer)
+func (m *Model) resizeView() string {
+	return m.fit(m.wrap("Cards need more room. Zoom out or enlarge the terminal to at least 88 columns × 36 rows.") + "\n\n" + m.wrap(fmt.Sprintf("Current size: %d columns × %d rows. Your game will resume when there is enough room. q: quit", m.width, m.height)))
 }
 
 func (m *Model) victoryView() string {
@@ -209,11 +176,9 @@ func (m *Model) victoryView() string {
 		lines = append(lines, fmt.Sprintf("%sG%d · %s · %s", prefix, i+1, meld.Kind, strings.Join(cards, " ")))
 	}
 	if m.width < 88 || m.height < 36 {
-		content := strings.Split(m.wrap(strings.Join(lines[1:], "\n")), "\n")
-		available := max(1, m.height-3)
-		m.scroll = min(m.scroll, max(0, len(content)-available))
-		return m.fit(lines[0] + "\n" + strings.Join(content[m.scroll:min(len(content), m.scroll+available)], "\n") + "\nj/k scroll · Enter/p play again · q quit")
+		return m.resizeView()
 	}
+
 	if m.width >= 28 && m.height >= len(lines)+26 {
 		pile, _ := cb.NewPile(melds[m.winnerGroup].Cards...)
 		lines = append(lines, m.renderer.Pile(pile, cb.View{Width: m.width, Height: 24, Layout: cb.Overlap, Selected: -1}))
@@ -266,9 +231,9 @@ that sequence impure. Printed jokers never make a pure sequence.
 
 STOCK AND DISPLAY
 An empty stock recycles older discards, keeping the open top.
-Small terminals use compact ranks/suits; resize to 88x36 for
-Cardboard Vintage art. Grid pages follow the selected card.
-Marks appear as positions in art mode and * in compact mode.
+Zoom out or enlarge the terminal to at least 88x36 for
+Cardboard Vintage art. Small windows show a resize prompt. Grid pages follow the selected card.
+Marked positions appear above the card artwork.
 
 Esc / ?: close · Up/Down or j/k: scroll`
 

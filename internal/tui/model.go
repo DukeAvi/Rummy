@@ -24,7 +24,7 @@ type Model struct {
 	width, height int
 	modeChoice    int
 	rank          cb.Rank
-	game          *game.Game
+	game          board
 	selection     *cb.Selection
 	marked        map[uint64]bool
 	layout        cb.Layout
@@ -123,6 +123,9 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		case table:
+			if m.width > 0 && (m.width < 88 || m.height < 36) {
+				return m, nil
+			}
 			if m.game.Phase() == game.Handoff {
 				if key == "enter" {
 					if err := m.game.ConfirmHandoff(m.game.Active()); err != nil {

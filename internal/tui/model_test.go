@@ -421,9 +421,8 @@ func TestResponsiveArtworkAndBounds(t *testing.T) {
 		})
 	}
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-	selected, _ := hand(t, m).At(m.selection.Selected())
-	if output := m.View(); !strings.Contains(output, selected.Short()) || strings.Contains(output, "▀") || !strings.Contains(output, "? help") {
-		t.Fatal("compact fallback unreadable")
+	if output := m.View(); !strings.Contains(output, "Zoom out") || strings.Contains(output, "▀") {
+		t.Fatal("small terminal must request resizing")
 	}
 }
 
@@ -468,26 +467,17 @@ func TestManyDraftGroupsKeepActionsVisible(t *testing.T) {
 	}
 }
 
-func TestCompactWinnerCanInspectEveryMeld(t *testing.T) {
+func TestSmallWinnerRequestsResize(t *testing.T) {
 	m := tableModel(t, 13)
 	press(m, "d")
 	fixtureHand(t, m, 13)
 	press(m, "v")
-	m.Update(tea.WindowSizeMsg{Width: 28, Height: 8})
-	var seen strings.Builder
-	for range 40 {
-		view := m.View()
-		assertBounds(t, view, 28, 8)
-		seen.WriteString(view)
-		press(m, "j")
+	m.Update(tea.WindowSizeMsg{Width: 50, Height: 15})
+	if view := m.View(); !strings.Contains(view, "Zoom out") || strings.Contains(view, "4H") {
+		t.Fatal("winner must request resize, not replace art with text")
 	}
-	for _, face := range []string{"4H", "5H", "6H", "9H", "9S", "9D", "9C", "QH", "QS", "QD", "2S", "2D", "2C"} {
-		if !strings.Contains(seen.String(), face) {
-			t.Fatalf("compact winner never shows %s", face)
-		}
-	}
-	press(m, "enter")
-	if m.screen != menu {
-		t.Fatal("compact play again")
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	if !strings.Contains(m.View(), "▀") {
+		t.Fatal("winner artwork did not recover after resize")
 	}
 }
