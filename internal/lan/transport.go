@@ -66,7 +66,7 @@ func Call(address string, r Request) (Response, error) {
 func ParseCode(code string) (string, string, error) {
 	address, token, ok := strings.Cut(strings.TrimSpace(code), "/")
 	if !ok || len(token) != 32 {
-		return "", "", fmt.Errorf("paste the entire address:port/code shown by the host")
+		return "", "", fmt.Errorf("paste the entire address:port/code from the HOST LOBBY; the host must first choose the mode and wild rank to generate it")
 	}
 	if _, _, err := net.SplitHostPort(address); err != nil {
 		return "", "", fmt.Errorf("code must contain an address and port")

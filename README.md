@@ -91,7 +91,11 @@ Resize at any point to resume the artwork. Each card uses 26×20 terminal cells.
    handoff screen. Only Enter reveals the next player's hand.
 3. Network host: choose **Host a game**, enter the laptop address reachable by
    your friend, then choose the mode and wild rank. The server listens on TCP
-   **45873**. The lobby displays a code like `192.168.137.1:45873/<token>`.
+   **45873**. The lobby shows **FULL JOIN CODE**, plus separate **Host address** and
+   **Join token** fields. Copy the whole code, like
+   `192.168.137.1:45873/<token>`. It appears after selecting the mode and wild
+   rank and successfully starting the host. A small window requests resizing
+   rather than hiding part of the code.
 4. Friend: connect to the laptop hotspot, launch the same game, choose network
    play → **Join a game**, and paste the **entire code**, including address,
    port, slash, and token. Press Enter. No separate address entry is needed.

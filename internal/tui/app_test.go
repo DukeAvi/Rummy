@@ -142,3 +142,48 @@ func TestNetworkReadyTurnsPrivacyAndRetry(t *testing.T) {
 		t.Fatal("peer exit not surfaced")
 	}
 }
+
+func TestHostLobbyAlwaysDisplaysCompleteJoinCredentials(t *testing.T) {
+	s, err := lan.New(game.Config{Cards: 7, Wild: cb.Six})
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := NewApp()
+	a.network = true
+	a.hosting = true
+	a.input = "10.255.255.254"
+	a.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	a.Update(hostMsg{s: &lan.Server{Session: s}})
+	address, token, err := lan.ParseCode(a.code)
+	if err != nil || address != "10.255.255.254:45873" || token != s.JoinToken() {
+		t.Fatal("host did not generate full code", a.code, err)
+	}
+	view := a.View()
+	for _, text := range []string{"FULL JOIN CODE", a.code, "Host address: " + address, "Join token: " + token} {
+		if !strings.Contains(view, text) {
+			t.Fatalf("host lobby hides %q: %s", text, view)
+		}
+	}
+	// The exact displayed line must be accepted by the guest's input path.
+	guest := NewApp()
+	guest.screen = joinCode
+	appKey(guest, a.code)
+	cmd := appKey(guest, "enter")
+	if cmd == nil || !guest.busy {
+		t.Fatal("displayed code was rejected by join input")
+	}
+	// Do not execute the connection command: transport socket access is tested
+	// independently where available, and this fixture has no listening socket.
+	a.Update(tea.WindowSizeMsg{Width: 40, Height: 12})
+	if view = a.View(); !strings.Contains(view, "Zoom out") || strings.Contains(view, "Join token:") {
+		t.Fatal("small lobby should prompt resize rather than clip credentials")
+	}
+	appKey(a, "enter")
+	if a.remote.state.Ready[0] {
+		t.Fatal("readied while join code was hidden")
+	}
+	a.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	if !strings.Contains(a.View(), a.code) {
+		t.Fatal("code not restored on resize")
+	}
+}

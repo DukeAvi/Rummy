@@ -235,6 +235,9 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.screen = playing
 		}
 	case lobby:
+		if k == "enter" && (m.width < 88 || m.height < 36) {
+			return a, nil
+		}
 		if k == "enter" {
 			a.message = "Ready. Waiting for the other player."
 			if err := a.remote.request("ready", 0, nil, false, game.Config{}); err != nil {
@@ -398,16 +401,25 @@ func (a *App) View() string {
 		}
 		body += "\n↑/↓ choose · Enter continue · Esc back · q quit"
 	case hostAddress:
-		body = "HOST · REACHABLE ADDRESS\n\n" + m.wrap("Enter the laptop IP that your friend can reach over the hotspot. The server listens on TCP port "+lan.Port+". In WSL, this may be your Windows hotspot adapter address; see README.") + "\n\n> " + a.input + "\n\nCtrl+U clear · Enter continue · Esc back · Ctrl+C quit\n\n" + m.wrap(a.message)
+		body = "HOST · REACHABLE ADDRESS\n\n" + m.wrap("Enter the laptop IP that your friend can reach over the hotspot. The server listens on TCP port "+lan.Port+". In WSL, this may be your Windows hotspot adapter address; see README. After this, choose the mode and wild rank. The full join code and token appear in the lobby after the server starts.") + "\n\n> " + a.input + "\n\nCtrl+U clear · Enter continue · Esc back · Ctrl+C quit\n\n" + m.wrap(a.message)
 	case joinCode:
 		body = "JOIN YOUR FRIEND\n\nConnect to the host's hotspot first.\nPaste the ENTIRE game or rejoin code, then press Enter.\n\n" + m.wrap("> "+a.input) + "\n\nCtrl+U clear · Esc back · Ctrl+C quit\n\n" + m.wrap(a.message)
 	case setup:
 		return m.View()
 	case lobby:
+		if m.width < 88 || m.height < 36 {
+			return m.resizeView()
+		}
 		r := a.remote
 		body = fmt.Sprintf("NETWORK LOBBY · Player %d\n\n%d-card Rummy · wild %s\n\n", r.player+1, r.state.Config.Cards, rankLabel(r.state.Config.Wild))
 		if a.hosting {
-			body += "Share this whole join code:\n" + m.wrap(a.code) + "\n\n"
+			address, token, err := lan.ParseCode(a.code)
+			if err != nil {
+				body += "Join code unavailable. Cancel this lobby with Esc and host again.\n\n"
+			} else {
+				body += "FULL JOIN CODE — copy this entire line:\n" + a.code + "\n\n" +
+					"Host address: " + address + "\nJoin token: " + token + "\n\n"
+			}
 		} else {
 			body += "Keep this private rejoin code (valid for 5 minutes offline):\n" + m.wrap(r.address+"/"+r.token) + "\n\n"
 		}
